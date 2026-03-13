@@ -4,7 +4,7 @@ AI-Powered Image Generation via Telegram Bot
 Omora-AI is a full-stack AI image-generation system seamlessly integrated with a Telegram bot.  
 Users can type any allowed prompt directly into Telegram and receive high-quality AI-generated images in seconds.
 
-GitHub Repository: **https://github.com/PsyZer0/Omora-Ai**
+GitHub Repository: **https://github.com/im-aswajith/Omora-Ai**
 
 ---
 
@@ -111,7 +111,7 @@ Your support motivates future updates and improvements!
 
 ```bash
 # Clone the repository
-git clone https://github.com/PsyZer0/Omora-Ai.git
+git clone https://github.com/im-aswajith/Omora-Ai.git
 
 # Enter project directory
 cd Omora-Ai
