@@ -1,0 +1,8 @@
+python-telegram-bot==20.6
+torch
+diffusers
+transformers
+accelerate
+safetensors
+Pillow
+numpy
