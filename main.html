@@ -1,0 +1,1812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Omora AI — Telegram Image Generation Bot</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet"/>
+  <style>
+    :root {
+      --neon-cyan: #00f5ff;
+      --neon-blue: #007bff;
+      --neon-purple: #9d00ff;
+      --neon-pink: #ff006e;
+      --dark-bg: #020408;
+      --dark-card: #040d1a;
+      --dark-border: rgba(0,245,255,0.12);
+      --glow-cyan: 0 0 20px rgba(0,245,255,0.5), 0 0 60px rgba(0,245,255,0.2);
+      --glow-purple: 0 0 20px rgba(157,0,255,0.5), 0 0 60px rgba(157,0,255,0.2);
+      --glow-pink: 0 0 20px rgba(255,0,110,0.5), 0 0 60px rgba(255,0,110,0.2);
+      --font-display: 'Orbitron', monospace;
+      --font-body: 'Rajdhani', sans-serif;
+      --font-mono: 'Share Tech Mono', monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background-color: var(--dark-bg);
+      color: #c8d8e8;
+      font-family: var(--font-body);
+      font-size: 1.05rem;
+      overflow-x: hidden;
+      cursor: none;
+    }
+
+    /* Custom cursor */
+    .cursor {
+      width: 12px; height: 12px;
+      background: var(--neon-cyan);
+      border-radius: 50%;
+      position: fixed;
+      pointer-events: none;
+      z-index: 99999;
+      transform: translate(-50%, -50%);
+      transition: width 0.2s, height 0.2s, background 0.2s;
+      box-shadow: var(--glow-cyan);
+    }
+    .cursor-ring {
+      width: 36px; height: 36px;
+      border: 1px solid rgba(0,245,255,0.5);
+      border-radius: 50%;
+      position: fixed;
+      pointer-events: none;
+      z-index: 99998;
+      transform: translate(-50%, -50%);
+      transition: all 0.08s ease;
+    }
+    body:hover .cursor { opacity: 1; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: var(--dark-bg); }
+    ::-webkit-scrollbar-thumb { background: var(--neon-cyan); border-radius: 2px; }
+
+    /* Background stars */
+    #stars-canvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* Floating grid lines */
+    .grid-bg {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background-image:
+        linear-gradient(rgba(0,245,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,245,255,0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* Scanline overlay */
+    .scanlines {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.07) 2px,
+        rgba(0,0,0,0.07) 4px
+      );
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    section, nav, footer { position: relative; z-index: 2; }
+
+    /* ============ NAVBAR ============ */
+    .navbar {
+      background: rgba(2,4,8,0.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--dark-border);
+      padding: 1rem 0;
+      position: fixed;
+      top: 0; width: 100%;
+      z-index: 1000;
+      transition: all 0.3s;
+    }
+    .navbar.scrolled {
+      background: rgba(2,4,8,0.97);
+      border-bottom-color: rgba(0,245,255,0.25);
+      box-shadow: 0 0 30px rgba(0,245,255,0.1);
+    }
+    .navbar-brand {
+      font-family: var(--font-display);
+      font-size: 1.5rem;
+      font-weight: 900;
+      color: var(--neon-cyan) !important;
+      text-shadow: var(--glow-cyan);
+      letter-spacing: 2px;
+      text-decoration: none;
+    }
+    .navbar-brand span { color: var(--neon-purple); }
+    .nav-link {
+      font-family: var(--font-body);
+      font-weight: 600;
+      color: #8aa5bf !important;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      font-size: 0.8rem;
+      transition: all 0.3s;
+      padding: 0.5rem 1rem !important;
+      position: relative;
+    }
+    .nav-link::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 50%;
+      width: 0; height: 1px;
+      background: var(--neon-cyan);
+      transition: all 0.3s;
+      transform: translateX(-50%);
+      box-shadow: var(--glow-cyan);
+    }
+    .nav-link:hover { color: var(--neon-cyan) !important; }
+    .nav-link:hover::after { width: 80%; }
+    .navbar-toggler { border-color: var(--dark-border); }
+    .navbar-toggler-icon { filter: invert(1); }
+
+    /* ============ HERO ============ */
+    #hero {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      padding-top: 80px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Rotating ring background */
+    .hero-ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 1px solid;
+      animation: rotate-ring linear infinite;
+      pointer-events: none;
+    }
+    .hero-ring:nth-child(1) {
+      width: 600px; height: 600px;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      border-color: rgba(0,245,255,0.08);
+      animation-duration: 30s;
+    }
+    .hero-ring:nth-child(2) {
+      width: 800px; height: 800px;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      border-color: rgba(157,0,255,0.06);
+      animation-duration: 45s;
+      animation-direction: reverse;
+    }
+    .hero-ring:nth-child(3) {
+      width: 1100px; height: 1100px;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      border-color: rgba(0,245,255,0.04);
+      animation-duration: 60s;
+    }
+    @keyframes rotate-ring {
+      from { transform: translate(-50%, -50%) rotate(0deg); }
+      to { transform: translate(-50%, -50%) rotate(360deg); }
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(0,245,255,0.07);
+      border: 1px solid rgba(0,245,255,0.2);
+      border-radius: 100px;
+      padding: 6px 18px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--neon-cyan);
+      letter-spacing: 2px;
+      margin-bottom: 1.5rem;
+      animation: badge-pulse 3s ease-in-out infinite;
+    }
+    @keyframes badge-pulse {
+      0%, 100% { box-shadow: 0 0 0 rgba(0,245,255,0); }
+      50% { box-shadow: 0 0 20px rgba(0,245,255,0.25); }
+    }
+    .badge-dot {
+      width: 6px; height: 6px;
+      background: var(--neon-cyan);
+      border-radius: 50%;
+      animation: blink 1.5s ease-in-out infinite;
+      box-shadow: 0 0 8px var(--neon-cyan);
+    }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+
+    .hero-title {
+      font-family: var(--font-display);
+      font-size: clamp(2.5rem, 7vw, 5.5rem);
+      font-weight: 900;
+      line-height: 1.05;
+      color: #fff;
+      letter-spacing: -1px;
+      margin-bottom: 0.5rem;
+    }
+    .hero-title .gradient-text {
+      background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple), var(--neon-pink));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: gradient-shift 4s ease-in-out infinite;
+      background-size: 200% 200%;
+    }
+    @keyframes gradient-shift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    .hero-subtitle {
+      font-family: var(--font-body);
+      font-size: 1.25rem;
+      color: #6a8aa5;
+      line-height: 1.7;
+      max-width: 580px;
+      font-weight: 400;
+      margin-bottom: 2.5rem;
+    }
+
+    .hero-cta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-bottom: 3rem;
+    }
+
+    .btn-primary-neon {
+      font-family: var(--font-display);
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      padding: 14px 32px;
+      background: transparent;
+      border: 1px solid var(--neon-cyan);
+      color: var(--neon-cyan);
+      border-radius: 4px;
+      text-transform: uppercase;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      transition: all 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-primary-neon::before {
+      content: '';
+      position: absolute;
+      top: 0; left: -100%;
+      width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(0,245,255,0.1), transparent);
+      transition: left 0.5s;
+    }
+    .btn-primary-neon:hover {
+      background: rgba(0,245,255,0.1);
+      box-shadow: var(--glow-cyan), inset 0 0 20px rgba(0,245,255,0.05);
+      color: var(--neon-cyan);
+    }
+    .btn-primary-neon:hover::before { left: 100%; }
+
+    .btn-secondary-neon {
+      font-family: var(--font-display);
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      padding: 14px 32px;
+      background: linear-gradient(135deg, rgba(157,0,255,0.2), rgba(0,245,255,0.1));
+      border: 1px solid rgba(157,0,255,0.4);
+      color: #d0aaff;
+      border-radius: 4px;
+      text-transform: uppercase;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      transition: all 0.3s;
+    }
+    .btn-secondary-neon:hover {
+      background: linear-gradient(135deg, rgba(157,0,255,0.35), rgba(0,245,255,0.2));
+      box-shadow: var(--glow-purple);
+      color: #e8d5ff;
+    }
+
+    /* Floating stats */
+    .hero-stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2.5rem;
+    }
+    .stat-item { text-align: left; }
+    .stat-number {
+      font-family: var(--font-display);
+      font-size: 2rem;
+      font-weight: 900;
+      color: var(--neon-cyan);
+      text-shadow: var(--glow-cyan);
+      line-height: 1;
+    }
+    .stat-label {
+      font-size: 0.75rem;
+      color: #4a6a85;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-top: 4px;
+      font-weight: 600;
+    }
+
+    /* Hero visual */
+    .hero-visual {
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .ai-orb {
+      width: 380px;
+      height: 380px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%,
+        rgba(0,245,255,0.25) 0%,
+        rgba(157,0,255,0.15) 40%,
+        rgba(2,4,8,0.8) 70%
+      );
+      border: 1px solid rgba(0,245,255,0.2);
+      position: relative;
+      animation: orb-breathe 4s ease-in-out infinite;
+      box-shadow:
+        0 0 60px rgba(0,245,255,0.15),
+        0 0 120px rgba(157,0,255,0.1),
+        inset 0 0 60px rgba(0,245,255,0.05);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    @keyframes orb-breathe {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 60px rgba(0,245,255,0.15), 0 0 120px rgba(157,0,255,0.1); }
+      50% { transform: scale(1.03); box-shadow: 0 0 90px rgba(0,245,255,0.25), 0 0 160px rgba(157,0,255,0.15); }
+    }
+    .orb-inner {
+      font-family: var(--font-display);
+      font-size: 5rem;
+      color: rgba(0,245,255,0.8);
+      text-shadow: var(--glow-cyan);
+      animation: icon-float 3s ease-in-out infinite;
+    }
+    @keyframes icon-float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-12px); }
+    }
+    .orb-ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 1px dashed;
+      animation: spin-slow linear infinite;
+    }
+    .orb-ring-1 {
+      width: 440px; height: 440px;
+      border-color: rgba(0,245,255,0.15);
+      animation-duration: 20s;
+    }
+    .orb-ring-2 {
+      width: 520px; height: 520px;
+      border-color: rgba(157,0,255,0.1);
+      animation-duration: 35s;
+      animation-direction: reverse;
+    }
+    @keyframes spin-slow {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    /* Floating cards on orb */
+    .float-card {
+      position: absolute;
+      background: rgba(4,13,26,0.9);
+      border: 1px solid var(--dark-border);
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--neon-cyan);
+      backdrop-filter: blur(10px);
+      animation: card-float 4s ease-in-out infinite;
+      white-space: nowrap;
+    }
+    .float-card:nth-child(1) { top: 10%; left: -20%; animation-delay: 0s; }
+    .float-card:nth-child(2) { bottom: 20%; right: -20%; animation-delay: -2s; }
+    .float-card:nth-child(3) { top: 65%; left: -25%; animation-delay: -1s; color: #d0aaff; border-color: rgba(157,0,255,0.2); }
+    @keyframes card-float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    /* ============ SECTIONS SHARED ============ */
+    section { padding: 100px 0; }
+
+    .section-label {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--neon-cyan);
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      margin-bottom: 0.75rem;
+      opacity: 0.8;
+    }
+    .section-title {
+      font-family: var(--font-display);
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      font-weight: 900;
+      color: #fff;
+      letter-spacing: 1px;
+      margin-bottom: 1rem;
+    }
+    .section-desc {
+      font-size: 1.05rem;
+      color: #5a7a90;
+      line-height: 1.75;
+      max-width: 560px;
+    }
+
+    /* ============ ABOUT ============ */
+    #about { background: transparent; }
+
+    .about-card {
+      background: var(--dark-card);
+      border: 1px solid var(--dark-border);
+      border-radius: 12px;
+      padding: 2.5rem;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.4s;
+    }
+    .about-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 2px;
+      background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple));
+    }
+    .about-card:hover {
+      border-color: rgba(0,245,255,0.3);
+      box-shadow: 0 0 40px rgba(0,245,255,0.08);
+      transform: translateY(-4px);
+    }
+
+    .tech-stack-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(0,245,255,0.06);
+      border: 1px solid rgba(0,245,255,0.15);
+      border-radius: 4px;
+      padding: 6px 14px;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: #a0c8d8;
+      margin: 4px;
+      transition: all 0.3s;
+    }
+    .tech-stack-item:hover {
+      background: rgba(0,245,255,0.12);
+      color: var(--neon-cyan);
+      box-shadow: 0 0 12px rgba(0,245,255,0.2);
+    }
+    .tech-stack-item i { color: var(--neon-cyan); font-size: 0.9rem; }
+
+    /* ============ FEATURES ============ */
+    #features { background: rgba(0,245,255,0.015); }
+
+    .feature-card {
+      background: var(--dark-card);
+      border: 1px solid var(--dark-border);
+      border-radius: 12px;
+      padding: 2rem;
+      height: 100%;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.4s;
+      cursor: default;
+    }
+    .feature-card::after {
+      content: '';
+      position: absolute;
+      top: -50%; left: -50%;
+      width: 200%; height: 200%;
+      background: radial-gradient(circle, rgba(0,245,255,0.05) 0%, transparent 60%);
+      opacity: 0;
+      transition: opacity 0.4s;
+    }
+    .feature-card:hover::after { opacity: 1; }
+    .feature-card:hover {
+      border-color: rgba(0,245,255,0.25);
+      transform: translateY(-6px);
+      box-shadow: 0 20px 60px rgba(0,245,255,0.07);
+    }
+
+    .feature-icon {
+      width: 56px; height: 56px;
+      background: rgba(0,245,255,0.08);
+      border: 1px solid rgba(0,245,255,0.2);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      color: var(--neon-cyan);
+      margin-bottom: 1.25rem;
+      transition: all 0.3s;
+    }
+    .feature-card:hover .feature-icon {
+      background: rgba(0,245,255,0.15);
+      box-shadow: var(--glow-cyan);
+    }
+    .feature-title {
+      font-family: var(--font-display);
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #e0eeff;
+      letter-spacing: 1px;
+      margin-bottom: 0.75rem;
+    }
+    .feature-desc {
+      font-size: 0.95rem;
+      color: #4a6a85;
+      line-height: 1.7;
+    }
+
+    /* ============ HOW IT WORKS ============ */
+    #how-it-works { background: transparent; }
+
+    .step-item {
+      display: flex;
+      gap: 2rem;
+      position: relative;
+      margin-bottom: 3rem;
+      opacity: 0;
+      transform: translateX(-40px);
+      transition: all 0.6s ease;
+    }
+    .step-item.visible { opacity: 1; transform: translateX(0); }
+    .step-number {
+      font-family: var(--font-display);
+      font-size: 3rem;
+      font-weight: 900;
+      color: rgba(0,245,255,0.12);
+      min-width: 70px;
+      line-height: 1;
+      transition: all 0.3s;
+    }
+    .step-item:hover .step-number { color: rgba(0,245,255,0.3); }
+    .step-content { flex: 1; }
+    .step-title {
+      font-family: var(--font-display);
+      font-size: 1rem;
+      font-weight: 700;
+      color: #e0eeff;
+      letter-spacing: 1px;
+      margin-bottom: 0.5rem;
+    }
+    .step-desc { font-size: 0.95rem; color: #4a6a85; line-height: 1.7; }
+    .step-connector {
+      width: 2px;
+      height: 100%;
+      background: linear-gradient(180deg, var(--neon-cyan), transparent);
+      position: absolute;
+      left: 34px;
+      top: 60px;
+      opacity: 0.2;
+    }
+
+    /* ============ SETTINGS PANEL ============ */
+    #settings { background: rgba(157,0,255,0.02); }
+
+    .settings-visual {
+      background: var(--dark-card);
+      border: 1px solid var(--dark-border);
+      border-radius: 12px;
+      overflow: hidden;
+      font-family: var(--font-mono);
+    }
+    .settings-header {
+      background: rgba(0,245,255,0.05);
+      border-bottom: 1px solid var(--dark-border);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot-red { background: #ff5f57; }
+    .dot-yellow { background: #febc2e; }
+    .dot-green { background: #28c840; }
+    .settings-title { font-size: 0.75rem; color: #4a6a85; margin-left: 8px; }
+    .settings-body { padding: 1.5rem; }
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(0,245,255,0.05);
+    }
+    .setting-row:last-child { border-bottom: none; }
+    .setting-name { font-size: 0.8rem; color: #a0c8d8; }
+    .setting-value {
+      font-size: 0.8rem;
+      color: var(--neon-cyan);
+      background: rgba(0,245,255,0.07);
+      padding: 4px 12px;
+      border-radius: 4px;
+      border: 1px solid rgba(0,245,255,0.15);
+    }
+    .setting-value.purple {
+      color: #d0aaff;
+      background: rgba(157,0,255,0.07);
+      border-color: rgba(157,0,255,0.15);
+    }
+
+    /* ============ PRICING / BALANCE ============ */
+    #pricing { background: transparent; }
+
+    .price-card {
+      background: var(--dark-card);
+      border: 1px solid var(--dark-border);
+      border-radius: 16px;
+      padding: 2.5rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.4s;
+    }
+    .price-card.featured {
+      border-color: rgba(0,245,255,0.35);
+      background: linear-gradient(180deg, rgba(0,245,255,0.04), var(--dark-card));
+    }
+    .price-card.featured::before {
+      content: 'MOST POPULAR';
+      position: absolute;
+      top: 18px; right: -30px;
+      background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple));
+      color: #000;
+      font-family: var(--font-display);
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      padding: 4px 50px;
+      transform: rotate(45deg);
+    }
+    .price-card:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 30px 80px rgba(0,245,255,0.1);
+    }
+    .price-label {
+      font-family: var(--font-display);
+      font-size: 0.7rem;
+      letter-spacing: 3px;
+      color: var(--neon-cyan);
+      margin-bottom: 0.5rem;
+    }
+    .price-amount {
+      font-family: var(--font-display);
+      font-size: 3rem;
+      font-weight: 900;
+      color: #fff;
+    }
+    .price-amount span { font-size: 1.2rem; color: #5a7a90; }
+    .price-features { list-style: none; text-align: left; margin: 1.5rem 0; }
+    .price-features li {
+      padding: 8px 0;
+      font-size: 0.9rem;
+      color: #6a8aa5;
+      border-bottom: 1px solid rgba(0,245,255,0.05);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .price-features li i { color: var(--neon-cyan); font-size: 0.8rem; }
+
+    /* ============ COMMANDS ============ */
+    #commands { background: rgba(0,245,255,0.015); }
+
+    .cmd-card {
+      background: var(--dark-card);
+      border: 1px solid var(--dark-border);
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      transition: all 0.3s;
+    }
+    .cmd-card:hover {
+      border-color: rgba(0,245,255,0.25);
+      box-shadow: 0 0 30px rgba(0,245,255,0.06);
+      transform: translateX(6px);
+    }
+    .cmd-badge {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      background: rgba(0,245,255,0.08);
+      border: 1px solid rgba(0,245,255,0.2);
+      color: var(--neon-cyan);
+      padding: 4px 12px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+    .cmd-desc { font-size: 0.95rem; color: #5a7a90; line-height: 1.6; }
+
+    /* ============ PRIVACY ============ */
+    #privacy { background: transparent; }
+
+    .privacy-card {
+      background: var(--dark-card);
+      border: 1px solid var(--dark-border);
+      border-radius: 12px;
+      padding: 2rem;
+      margin-bottom: 1.5rem;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s;
+    }
+    .privacy-card:hover {
+      border-color: rgba(0,245,255,0.2);
+      box-shadow: 0 0 30px rgba(0,245,255,0.05);
+    }
+    .privacy-card::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0;
+      width: 3px; height: 100%;
+      background: linear-gradient(180deg, var(--neon-cyan), transparent);
+    }
+    .privacy-icon {
+      font-size: 1.75rem;
+      margin-bottom: 1rem;
+    }
+    .privacy-title {
+      font-family: var(--font-display);
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #e0eeff;
+      letter-spacing: 1px;
+      margin-bottom: 0.5rem;
+    }
+    .privacy-text { font-size: 0.95rem; color: #4a6a85; line-height: 1.75; }
+
+    /* ============ LEGAL / WARNING BLOCK ============ */
+    #legal { background: rgba(255,0,110,0.02); }
+
+    .legal-warning-box {
+      background: rgba(255,0,110,0.05);
+      border: 1px solid rgba(255,0,110,0.3);
+      border-radius: 12px;
+      padding: 2.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .legal-warning-box::before {
+      content: '⚠';
+      position: absolute;
+      top: -20px; right: -10px;
+      font-size: 8rem;
+      color: rgba(255,0,110,0.04);
+      pointer-events: none;
+    }
+    .legal-warning-title {
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      font-weight: 900;
+      color: #ff006e;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+      text-shadow: 0 0 20px rgba(255,0,110,0.5);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .legal-text {
+      font-size: 0.95rem;
+      color: #8a5565;
+      line-height: 1.8;
+      margin-bottom: 1rem;
+    }
+    .legal-text strong { color: #ffaacc; }
+    .legal-highlight {
+      background: rgba(255,0,110,0.08);
+      border-left: 3px solid var(--neon-pink);
+      padding: 1rem 1.5rem;
+      border-radius: 0 8px 8px 0;
+      margin: 1rem 0;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      color: #ffaacc;
+      line-height: 1.8;
+    }
+
+    .disclaimer-box {
+      background: rgba(0,245,255,0.03);
+      border: 1px solid rgba(0,245,255,0.12);
+      border-radius: 12px;
+      padding: 2rem;
+      margin-top: 1.5rem;
+    }
+    .disclaimer-title {
+      font-family: var(--font-display);
+      font-size: 0.8rem;
+      color: var(--neon-cyan);
+      letter-spacing: 3px;
+      margin-bottom: 0.75rem;
+    }
+    .disclaimer-text {
+      font-size: 0.9rem;
+      color: #3a5a75;
+      line-height: 1.75;
+    }
+
+    /* ============ FOOTER ============ */
+    footer {
+      background: rgba(2,4,8,0.95);
+      border-top: 1px solid var(--dark-border);
+      padding: 60px 0 30px;
+    }
+    .footer-brand {
+      font-family: var(--font-display);
+      font-size: 1.5rem;
+      font-weight: 900;
+      color: var(--neon-cyan);
+      text-shadow: var(--glow-cyan);
+      letter-spacing: 3px;
+      margin-bottom: 0.5rem;
+    }
+    .footer-tagline { font-size: 0.85rem; color: #3a5a75; margin-bottom: 1.5rem; }
+    .footer-divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(0,245,255,0.15), transparent);
+      margin: 2rem 0;
+    }
+    .footer-copy {
+      font-size: 0.8rem;
+      color: #2a4a60;
+      text-align: center;
+    }
+    .footer-copy span { color: var(--neon-cyan); }
+
+    /* ============ SCROLL REVEAL ============ */
+    .reveal {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    /* ============ GLITCH EFFECT ============ */
+    .glitch {
+      position: relative;
+    }
+    .glitch::before, .glitch::after {
+      content: attr(data-text);
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+    }
+    .glitch::before {
+      color: var(--neon-cyan);
+      animation: glitch-1 3s infinite;
+      clip-path: polygon(0 0, 100% 0, 100% 45%, 0 45%);
+      transform: translate(-2px);
+    }
+    .glitch::after {
+      color: var(--neon-pink);
+      animation: glitch-2 3s infinite;
+      clip-path: polygon(0 55%, 100% 55%, 100% 100%, 0 100%);
+      transform: translate(2px);
+    }
+    @keyframes glitch-1 {
+      0%, 90%, 100% { transform: translate(0); opacity: 0; }
+      92% { transform: translate(-3px, 1px); opacity: 0.6; }
+      94% { transform: translate(2px, -1px); opacity: 0.4; }
+    }
+    @keyframes glitch-2 {
+      0%, 90%, 100% { transform: translate(0); opacity: 0; }
+      91% { transform: translate(3px, -1px); opacity: 0.6; }
+      93% { transform: translate(-2px, 1px); opacity: 0.4; }
+    }
+
+    /* ============ COUNTER ============ */
+    .counter-section {
+      background: linear-gradient(180deg, rgba(0,245,255,0.04) 0%, transparent 100%);
+      border-top: 1px solid var(--dark-border);
+      border-bottom: 1px solid var(--dark-border);
+      padding: 60px 0;
+    }
+    .counter-item { text-align: center; }
+    .counter-number {
+      font-family: var(--font-display);
+      font-size: 2.5rem;
+      font-weight: 900;
+      color: var(--neon-cyan);
+      text-shadow: var(--glow-cyan);
+    }
+    .counter-label {
+      font-size: 0.75rem;
+      color: #3a5a75;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-top: 8px;
+      font-weight: 600;
+    }
+
+    /* ============ NAVBAR MOBILE ============ */
+    @media (max-width: 768px) {
+      .ai-orb { width: 280px; height: 280px; }
+      .orb-ring-1 { width: 320px; height: 320px; }
+      .orb-ring-2 { width: 380px; height: 380px; }
+      .float-card { display: none; }
+      .hero-stats { gap: 1.5rem; }
+    }
+
+    /* ============ LOADING SCREEN ============ */
+    #loader {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: var(--dark-bg);
+      z-index: 99999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.6s, visibility 0.6s;
+    }
+    #loader.hidden { opacity: 0; visibility: hidden; }
+    .loader-brand {
+      font-family: var(--font-display);
+      font-size: 2.5rem;
+      font-weight: 900;
+      color: var(--neon-cyan);
+      text-shadow: var(--glow-cyan);
+      letter-spacing: 6px;
+      margin-bottom: 2rem;
+      animation: loader-pulse 1s ease-in-out infinite;
+    }
+    @keyframes loader-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .loader-bar-wrap {
+      width: 300px;
+      height: 2px;
+      background: rgba(0,245,255,0.1);
+      border-radius: 1px;
+      overflow: hidden;
+    }
+    .loader-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple));
+      box-shadow: var(--glow-cyan);
+      animation: loader-fill 2s ease-in-out forwards;
+      width: 0%;
+    }
+    @keyframes loader-fill { to { width: 100%; } }
+    .loader-text {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: #3a5a75;
+      margin-top: 1rem;
+      letter-spacing: 3px;
+    }
+
+    /* Highlight in navbar active */
+    .nav-link.active { color: var(--neon-cyan) !important; }
+
+    /* Terminal prompt style */
+    .terminal-prompt {
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      color: #4a6a85;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(0,245,255,0.08);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      margin-top: 1.5rem;
+    }
+    .prompt-line { margin-bottom: 4px; }
+    .prompt-user { color: var(--neon-cyan); }
+    .prompt-path { color: var(--neon-purple); }
+    .prompt-cmd { color: #a0c8d8; }
+    .prompt-output { color: #3a5a75; }
+    .prompt-cursor {
+      display: inline-block;
+      width: 8px; height: 14px;
+      background: var(--neon-cyan);
+      margin-left: 2px;
+      vertical-align: middle;
+      animation: blink 1s step-end infinite;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Loader -->
+<div id="loader">
+  <div class="loader-brand">OMORA AI</div>
+  <div class="loader-bar-wrap">
+    <div class="loader-bar"></div>
+  </div>
+  <div class="loader-text">INITIALIZING NEURAL PIPELINE...</div>
+</div>
+
+<!-- Custom Cursor -->
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+
+<!-- Background -->
+<canvas id="stars-canvas"></canvas>
+<div class="grid-bg"></div>
+<div class="scanlines"></div>
+
+<!-- ============ NAVBAR ============ -->
+<nav class="navbar navbar-expand-lg" id="mainNav">
+  <div class="container">
+    <a class="navbar-brand" href="#">OMORA<span>·AI</span></a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navMenu">
+      <ul class="navbar-nav ms-auto gap-1">
+        <li class="nav-item"><a class="nav-link" href="#about">About</a></li>
+        <li class="nav-item"><a class="nav-link" href="#features">Features</a></li>
+        <li class="nav-item"><a class="nav-link" href="#how-it-works">How It Works</a></li>
+        <li class="nav-item"><a class="nav-link" href="#commands">Commands</a></li>
+        <li class="nav-item"><a class="nav-link" href="#pricing">Pricing</a></li>
+        <li class="nav-item"><a class="nav-link" href="#privacy">Privacy</a></li>
+        <li class="nav-item"><a class="nav-link" href="#legal">Legal</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<!-- ============ HERO ============ -->
+<section id="hero">
+  <div class="hero-ring"></div>
+  <div class="hero-ring"></div>
+  <div class="hero-ring"></div>
+  <div class="container">
+    <div class="row align-items-center g-5">
+      <div class="col-lg-6">
+        <div class="hero-badge">
+          <div class="badge-dot"></div>
+          STABLE DIFFUSION · TELEGRAM BOT · V1.0
+        </div>
+        <h1 class="hero-title">
+          Turn Your<br>
+          <span class="gradient-text glitch" data-text="Imagination">Imagination</span><br>
+          Into Reality
+        </h1>
+        <p class="hero-subtitle mt-3">
+          Omora AI is an advanced Telegram bot powered by Stable Diffusion — generating photorealistic images from your text prompts directly inside Telegram. No installs. No complexity. Just describe and create.
+        </p>
+        <div class="hero-cta">
+          <a href="https://t.me/your_bot_username" class="btn-primary-neon" target="_blank">
+            <i class="fab fa-telegram"></i>
+            Open on Telegram
+          </a>
+          <a href="#how-it-works" class="btn-secondary-neon">
+            <i class="fas fa-play-circle"></i>
+            How It Works
+          </a>
+        </div>
+        <div class="hero-stats">
+          <div class="stat-item">
+            <div class="stat-number" data-count="512">0</div>
+            <div class="stat-label">Max Px Resolution</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number" data-count="50">0</div>
+            <div class="stat-label">Max Inference Steps</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number" data-count="4">0</div>
+            <div class="stat-label">Size Options</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="hero-visual">
+          <div class="ai-orb">
+            <div class="orb-inner"><i class="fas fa-brain"></i></div>
+            <div class="orb-ring orb-ring-1"></div>
+            <div class="orb-ring orb-ring-2"></div>
+          </div>
+          <div class="float-card" style="top:8%;left:-22%;">
+            <i class="fas fa-check-circle" style="color:#00f5ff;margin-right:6px;"></i>/imagine a sunset city
+          </div>
+          <div class="float-card" style="bottom:15%;right:-24%;color:#d0aaff;border-color:rgba(157,0,255,0.2);">
+            <i class="fas fa-image" style="color:#d0aaff;margin-right:6px;"></i>image_a3kX91.png
+          </div>
+          <div class="float-card" style="top:62%;left:-28%;color:#7affb0;border-color:rgba(0,255,100,0.2);">
+            <i class="fas fa-bolt" style="color:#7affb0;margin-right:6px;"></i>Steps: 20 · 7.5 CFG
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ COUNTER BAND ============ -->
+<div class="counter-section">
+  <div class="container">
+    <div class="row g-4 text-center">
+      <div class="col-6 col-md-3 counter-item">
+        <div class="counter-number" data-count="768">0</div>
+        <div class="counter-label">Max Resolution</div>
+      </div>
+      <div class="col-6 col-md-3 counter-item">
+        <div class="counter-number" data-count="4">0</div>
+        <div class="counter-label">Image Sizes</div>
+      </div>
+      <div class="col-6 col-md-3 counter-item">
+        <div class="counter-number" data-count="100">0</div>
+        <div class="counter-label">% CUDA Optimized</div>
+      </div>
+      <div class="col-6 col-md-3 counter-item">
+        <div class="counter-number" data-count="18">0</div>
+        <div class="counter-label">Age Restriction</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ABOUT ============ -->
+<section id="about">
+  <div class="container">
+    <div class="row g-5 align-items-center">
+      <div class="col-lg-5 reveal">
+        <div class="section-label">// WHAT IS OMORA AI</div>
+        <h2 class="section-title">A Next-Gen AI<br>Image Engine on Telegram</h2>
+        <p class="section-desc mb-4">
+          Omora AI leverages the <strong style="color:#a0c8d8;">Realistic Vision V3.0 VAE</strong> Stable Diffusion model to transform text prompts into photorealistic, high-quality images — all through a simple Telegram bot interface. No GPU setup required on your end.
+        </p>
+        <p class="section-desc mb-4">
+          Built with a secure user verification system, personal balance management, and fully customizable generation parameters, Omora AI gives you studio-grade control in your pocket.
+        </p>
+        <div class="terminal-prompt">
+          <div class="prompt-line"><span class="prompt-user">user@omora</span>:<span class="prompt-path">~/bot</span>$ <span class="prompt-cmd">/imagine A futuristic city at night, neon lights, rain</span></div>
+          <div class="prompt-line"><span class="prompt-output">→ Generating image... [████████████] 20/20 steps</span></div>
+          <div class="prompt-line"><span class="prompt-output">→ Saved: image_a3kX91.png · 512×768px · 0.3$ deducted</span></div>
+          <div class="prompt-line"><span class="prompt-cursor"></span></div>
+        </div>
+      </div>
+      <div class="col-lg-7 reveal">
+        <div class="about-card mb-4">
+          <h5 class="feature-title mb-3"><i class="fas fa-layer-group me-2" style="color:var(--neon-cyan);"></i>Technology Stack</h5>
+          <div>
+            <span class="tech-stack-item"><i class="fab fa-python"></i> Python 3.10+</span>
+            <span class="tech-stack-item"><i class="fas fa-robot"></i> python-telegram-bot</span>
+            <span class="tech-stack-item"><i class="fas fa-fire"></i> PyTorch</span>
+            <span class="tech-stack-item"><i class="fas fa-magic"></i> diffusers</span>
+            <span class="tech-stack-item"><i class="fas fa-microchip"></i> CUDA / CPU</span>
+            <span class="tech-stack-item"><i class="fas fa-eye"></i> Realistic Vision V3.0</span>
+            <span class="tech-stack-item"><i class="fas fa-shield-alt"></i> Safety Checker</span>
+            <span class="tech-stack-item"><i class="fas fa-save"></i> safetensors</span>
+          </div>
+        </div>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="about-card h-100">
+              <div class="feature-icon mb-3"><i class="fas fa-server"></i></div>
+              <div class="feature-title">Model Architecture</div>
+              <div class="feature-desc">Runs Stable Diffusion with a VAE-enhanced pipeline on GPU (CUDA) or CPU fallback for maximum compatibility.</div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="about-card h-100">
+              <div class="feature-icon mb-3"><i class="fas fa-users-cog"></i></div>
+              <div class="feature-title">Per-User Data System</div>
+              <div class="feature-desc">Every user gets their own settings file, prompt history, and balance — stored locally in the <code style="color:var(--neon-cyan);">Omora-Ai/</code> directory.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FEATURES ============ -->
+<section id="features">
+  <div class="container">
+    <div class="text-center mb-5 reveal">
+      <div class="section-label">// CORE CAPABILITIES</div>
+      <h2 class="section-title">Everything You Need to<br>Create Stunning Images</h2>
+    </div>
+    <div class="row g-4">
+      <div class="col-md-6 col-lg-4 reveal">
+        <div class="feature-card">
+          <div class="feature-icon"><i class="fas fa-wand-magic-sparkles"></i></div>
+          <div class="feature-title">TEXT-TO-IMAGE GENERATION</div>
+          <div class="feature-desc">Type any prompt with the <code style="color:var(--neon-cyan);">/imagine</code> command and receive a photorealistic image rendered by Stable Diffusion in seconds.</div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-4 reveal">
+        <div class="feature-card">
+          <div class="feature-icon"><i class="fas fa-sliders"></i></div>
+          <div class="feature-title">ADVANCED SETTINGS</div>
+          <div class="feature-desc">Fine-tune Inference Steps (20–50), Guidance Scale (6.5–8.5), and output resolution (up to 768×768) through an interactive inline keyboard.</div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-4 reveal">
+        <div class="feature-card">
+          <div class="feature-icon"><i class="fas fa-id-card-clip"></i></div>
+          <div class="feature-title">AGE VERIFICATION GATE</div>
+          <div class="feature-desc">A built-in 18+ verification system ensures responsible access. User age status is permanently stored per Telegram user ID.</div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-4 reveal">
+        <div class="feature-card">
+          <div class="feature-icon"><i class="fas fa-wallet"></i></div>
+          <div class="feature-title">BALANCE SYSTEM</div>
+          <div class="feature-desc">Each verified user receives an initial $0.50 balance. Every generation costs $0.30. Automatic refund if generation fails.</div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-4 reveal">
+        <div class="feature-card">
+          <div class="feature-icon"><i class="fas fa-history"></i></div>
+          <div class="feature-title">PROMPT HISTORY</div>
+          <div class="feature-desc">Every generated image and its prompt are saved locally per user. Your creative library grows with every generation.</div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-4 reveal">
+        <div class="feature-card">
+          <div class="feature-icon"><i class="fas fa-microchip"></i></div>
+          <div class="feature-title">GPU-ACCELERATED</div>
+          <div class="feature-desc">Automatically detects and uses CUDA-enabled GPU for maximum speed. Falls back to CPU if no GPU is available — always operational.</div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-4 reveal">
+        <div class="feature-card">
+          <div class="feature-icon"><i class="fas fa-shield-halved"></i></div>
+          <div class="feature-title">SAFETY FILTER</div>
+          <div class="feature-desc">Integrated safety checker prevents generation of harmful or inappropriate content, ensuring responsible AI usage.</div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-4 reveal">
+        <div class="feature-card">
+          <div class="feature-icon"><i class="fas fa-file-image"></i></div>
+          <div class="feature-title">LOSSLESS DELIVERY</div>
+          <div class="feature-desc">Images are sent as uncompressed document files — preserving every pixel of quality. No Telegram compression applied.</div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-4 reveal">
+        <div class="feature-card">
+          <div class="feature-icon"><i class="fas fa-people-group"></i></div>
+          <div class="feature-title">GROUP SUPPORT</div>
+          <div class="feature-desc">Add Omora AI to your Telegram group and let members generate images collaboratively — a shared creative space.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ HOW IT WORKS ============ -->
+<section id="how-it-works">
+  <div class="container">
+    <div class="row g-5 align-items-start">
+      <div class="col-lg-5 reveal">
+        <div class="section-label">// WORKFLOW</div>
+        <h2 class="section-title">From Prompt<br>to Pixel in Seconds</h2>
+        <p class="section-desc mb-4">The entire generation pipeline is abstracted behind a clean Telegram interface. You describe; the model creates.</p>
+        <div class="settings-visual reveal">
+          <div class="settings-header">
+            <div class="dot dot-red"></div>
+            <div class="dot dot-yellow"></div>
+            <div class="dot dot-green"></div>
+            <div class="settings-title">⚙️ Advanced Settings Panel</div>
+          </div>
+          <div class="settings-body">
+            <div class="setting-row">
+              <span class="setting-name">Inference Steps</span>
+              <span class="setting-value">20 (default)</span>
+            </div>
+            <div class="setting-row">
+              <span class="setting-name">Guidance Scale</span>
+              <span class="setting-value">7.5 (default)</span>
+            </div>
+            <div class="setting-row">
+              <span class="setting-name">Image Size</span>
+              <span class="setting-value">512 × 512</span>
+            </div>
+            <div class="setting-row">
+              <span class="setting-name">Negative Prompt</span>
+              <span class="setting-value purple">blurry, cartoon...</span>
+            </div>
+            <div class="setting-row">
+              <span class="setting-name">Model</span>
+              <span class="setting-value purple">Realistic_Vision_V3.0</span>
+            </div>
+            <div class="setting-row">
+              <span class="setting-name">Device</span>
+              <span class="setting-value">CUDA / CPU</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-7">
+        <div class="step-item">
+          <div class="step-number">01</div>
+          <div class="step-content">
+            <div class="step-title">START THE BOT &amp; VERIFY AGE</div>
+            <div class="step-desc">Send <code style="color:var(--neon-cyan);">/start</code> to Omora AI on Telegram. First-time users go through a one-time age verification (18+). Only verified users gain access to the generation system.</div>
+          </div>
+          <div class="step-connector"></div>
+        </div>
+        <div class="step-item">
+          <div class="step-number">02</div>
+          <div class="step-content">
+            <div class="step-title">CHECK YOUR BALANCE</div>
+            <div class="step-desc">Verified users start with a $0.50 balance. Tap <strong style="color:#a0c8d8;">Account 👤</strong> to view your balance, User ID, and premium status. Top up anytime via the Deposit button.</div>
+          </div>
+          <div class="step-connector"></div>
+        </div>
+        <div class="step-item">
+          <div class="step-number">03</div>
+          <div class="step-content">
+            <div class="step-title">CONFIGURE YOUR SETTINGS (OPTIONAL)</div>
+            <div class="step-desc">Open <strong style="color:#a0c8d8;">More ⚙️</strong> to adjust Inference Steps, Guidance Scale, and Image Size. Your preferences are saved per account automatically.</div>
+          </div>
+          <div class="step-connector"></div>
+        </div>
+        <div class="step-item">
+          <div class="step-number">04</div>
+          <div class="step-content">
+            <div class="step-title">TYPE YOUR PROMPT</div>
+            <div class="step-desc">Use the command <code style="color:var(--neon-cyan);">/imagine [your description]</code>. Be descriptive — include lighting, style, and atmosphere for best results. Keep prompts under 400 characters.</div>
+          </div>
+          <div class="step-connector"></div>
+        </div>
+        <div class="step-item">
+          <div class="step-number">05</div>
+          <div class="step-content">
+            <div class="step-title">RECEIVE YOUR IMAGE</div>
+            <div class="step-desc">The bot deducts $0.30 from your balance and begins generating. Your image is returned as a full-quality, uncompressed PNG file. The prompt is saved to your history automatically.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ COMMANDS ============ -->
+<section id="commands">
+  <div class="container">
+    <div class="text-center mb-5 reveal">
+      <div class="section-label">// BOT COMMANDS</div>
+      <h2 class="section-title">Available Commands</h2>
+    </div>
+    <div class="row g-4">
+      <div class="col-lg-6 reveal">
+        <div class="cmd-card">
+          <div class="cmd-badge">/start</div>
+          <div class="cmd-desc">Launch the bot and display the main menu. Triggers age verification for first-time users. Returns the welcome screen with navigation buttons for returning users.</div>
+        </div>
+        <div class="cmd-card">
+          <div class="cmd-badge">/imagine [prompt]</div>
+          <div class="cmd-desc">Generate an AI image from your text description. Requires 18+ verification and a minimum balance of $0.30. Example: <code style="color:var(--neon-cyan);">/imagine a wolf howling at the moon, digital art</code></div>
+        </div>
+      </div>
+      <div class="col-lg-6 reveal">
+        <div class="cmd-card">
+          <div style="display:flex;flex-direction:column;gap:6px;min-width:160px;">
+            <div class="cmd-badge">Account 👤</div>
+            <div class="cmd-badge" style="color:#d0aaff;border-color:rgba(157,0,255,0.2);background:rgba(157,0,255,0.07);">Images 🖼️</div>
+          </div>
+          <div class="cmd-desc">Inline keyboard buttons accessible from the main menu. <strong style="color:#a0c8d8;">Account</strong> shows your ID, balance, and premium status. <strong style="color:#a0c8d8;">Images</strong> gives the generation guide with example prompts.</div>
+        </div>
+        <div class="cmd-card">
+          <div style="display:flex;flex-direction:column;gap:6px;min-width:160px;">
+            <div class="cmd-badge">More ⚙️</div>
+            <div class="cmd-badge" style="color:#7affb0;border-color:rgba(0,255,100,0.2);background:rgba(0,255,100,0.06);">Settings Panel</div>
+          </div>
+          <div class="cmd-desc">Access advanced generation parameters: Inference Steps (20/30/40/50), Guidance Scale (6.5/7.5/8.5), and Image Size (512×512, 512×768, 768×512, 768×768).</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PRICING ============ -->
+<section id="pricing">
+  <div class="container">
+    <div class="text-center mb-5 reveal">
+      <div class="section-label">// GENERATION COST</div>
+      <h2 class="section-title">Simple, Transparent Pricing</h2>
+    </div>
+    <div class="row g-4 justify-content-center">
+      <div class="col-md-5 col-lg-4 reveal">
+        <div class="price-card">
+          <div class="price-label">STARTER</div>
+          <div class="price-amount">$0.50 <span>/ signup</span></div>
+          <p style="color:#3a5a75;font-size:0.85rem;margin:0.75rem 0;">Free credits for every new verified user</p>
+          <ul class="price-features">
+            <li><i class="fas fa-check"></i> 1 Free generation on signup</li>
+            <li><i class="fas fa-check"></i> $0.50 initial balance</li>
+            <li><i class="fas fa-check"></i> All settings available</li>
+            <li><i class="fas fa-check"></i> Prompt history saved</li>
+            <li><i class="fas fa-xmark" style="color:#3a5a75;"></i> Priority queue</li>
+          </ul>
+          <a href="#" class="btn-primary-neon w-100 justify-content-center">Get Started Free</a>
+        </div>
+      </div>
+      <div class="col-md-5 col-lg-4 reveal">
+        <div class="price-card featured">
+          <div class="price-label">PER GENERATION</div>
+          <div class="price-amount">$0.30 <span>/ image</span></div>
+          <p style="color:#3a5a75;font-size:0.85rem;margin:0.75rem 0;">Pay only when you create</p>
+          <ul class="price-features">
+            <li><i class="fas fa-check"></i> Full quality PNG output</li>
+            <li><i class="fas fa-check"></i> No compression applied</li>
+            <li><i class="fas fa-check"></i> Up to 768×768 resolution</li>
+            <li><i class="fas fa-check"></i> Auto refund on failure</li>
+            <li><i class="fas fa-check"></i> Prompt saved to history</li>
+          </ul>
+          <a href="#" class="btn-primary-neon w-100 justify-content-center">Top Up Balance</a>
+        </div>
+      </div>
+      <div class="col-md-5 col-lg-4 reveal">
+        <div class="price-card">
+          <div class="price-label">PREMIUM</div>
+          <div class="price-amount">TBA <span>/ mo</span></div>
+          <p style="color:#3a5a75;font-size:0.85rem;margin:0.75rem 0;">Coming soon — unlock premium perks</p>
+          <ul class="price-features">
+            <li><i class="fas fa-check"></i> Priority processing queue</li>
+            <li><i class="fas fa-check"></i> Higher rate limits</li>
+            <li><i class="fas fa-check"></i> Exclusive model access</li>
+            <li><i class="fas fa-check"></i> Extended prompt length</li>
+            <li><i class="fas fa-check"></i> Premium badge on account</li>
+          </ul>
+          <a href="#" class="btn-secondary-neon w-100 justify-content-center">Notify Me</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PRIVACY ============ -->
+<section id="privacy">
+  <div class="container">
+    <div class="row g-5 align-items-start">
+      <div class="col-lg-5 reveal">
+        <div class="section-label">// DATA &amp; PRIVACY</div>
+        <h2 class="section-title">Your Data,<br>Handled with Care</h2>
+        <p class="section-desc mb-4">
+          Omora AI is designed with a minimal-data philosophy. We collect only what is technically necessary to operate the service — and nothing more.
+        </p>
+        <p class="section-desc">
+          All user data is stored <strong style="color:#a0c8d8;">locally on the server</strong> running the bot. No third-party analytics, no tracking pixels, no data brokers — ever.
+        </p>
+      </div>
+      <div class="col-lg-7 reveal">
+        <div class="privacy-card">
+          <div class="privacy-icon">🆔</div>
+          <div class="privacy-title">WHAT WE COLLECT</div>
+          <div class="privacy-text">We collect your Telegram <strong style="color:#a0c8d8;">User ID</strong>, age verification status (18+ or not), account balance, generation settings, and your prompt history with corresponding image filenames. No personal names, emails, or phone numbers are stored by the bot.</div>
+        </div>
+        <div class="privacy-card">
+          <div class="privacy-icon">🗄️</div>
+          <div class="privacy-title">HOW IT IS STORED</div>
+          <div class="privacy-text">Data is stored in plaintext files within the <code style="color:var(--neon-cyan);">Omora-Ai/</code> directory on the host server. Each user has an isolated folder (<code style="color:var(--neon-cyan);">Omora-Ai/[user_id]/</code>) containing their settings and generated images. Data is never transmitted to external services.</div>
+        </div>
+        <div class="privacy-card">
+          <div class="privacy-icon">🔒</div>
+          <div class="privacy-title">YOUR GENERATED IMAGES</div>
+          <div class="privacy-text">Generated images are saved server-side with a random unique filename. They are sent directly to your Telegram account. The developer does not actively monitor or view individual user images. Prompt history is stored to maintain your creative record.</div>
+        </div>
+        <div class="privacy-card">
+          <div class="privacy-icon">🚫</div>
+          <div class="privacy-title">WHAT WE DO NOT DO</div>
+          <div class="privacy-text">We do not sell your data. We do not share data with advertisers. We do not train models on your prompts or images. We do not log your Telegram messages beyond what is required by the bot framework to process commands.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LEGAL ============ -->
+<section id="legal">
+  <div class="container">
+    <div class="text-center mb-5 reveal">
+      <div class="section-label">// LEGAL NOTICE &amp; TERMS</div>
+      <h2 class="section-title">Terms of Use &amp; Legal Disclaimer</h2>
+    </div>
+    <div class="row g-4">
+      <div class="col-lg-7 reveal">
+        <div class="legal-warning-box">
+          <div class="legal-warning-title">
+            <i class="fas fa-triangle-exclamation"></i>
+            STRICT USAGE POLICY — READ CAREFULLY
+          </div>
+          <div class="legal-text">
+            By accessing or using Omora AI in any form, you acknowledge and agree to the following binding terms:
+          </div>
+          <div class="legal-highlight">
+            § 1. EDUCATIONAL PURPOSE ONLY<br>
+            This tool is developed and distributed strictly for <strong>educational and research purposes</strong>. It demonstrates AI image generation pipelines, Telegram bot development, and diffusion model integration. Any other use is outside the scope of this project.
+          </div>
+          <div class="legal-highlight">
+            § 2. ILLEGAL MODIFICATION — STRICTLY PROHIBITED<br>
+            <strong>Any unauthorized modification, reverse engineering, redistribution, resale, or derivative use of this script — in whole or in part — without express written permission from the original developer is strictly illegal</strong> and may result in civil and/or criminal prosecution under applicable intellectual property laws.
+          </div>
+          <div class="legal-highlight">
+            § 3. DEVELOPER LIABILITY WAIVER<br>
+            The developer of Omora AI is <strong>not responsible for any content generated</strong> by users of this tool. Users bear full legal and moral responsibility for the prompts they submit and the content they generate. By using the bot, you accept sole responsibility for your outputs.
+          </div>
+          <div class="legal-highlight">
+            § 4. CONTENT RESTRICTIONS<br>
+            Generation of illegal, hateful, non-consensual, or harmful content using this tool is <strong>strictly forbidden</strong>. The built-in safety checker is active, but users attempting to circumvent it will have their access terminated immediately. Misuse will be reported to relevant authorities.
+          </div>
+          <div class="legal-highlight">
+            § 5. AGE RESTRICTION ENFORCEMENT<br>
+            This service is restricted to individuals <strong>18 years of age or older</strong>. Misrepresentation of age to gain access is a violation of these terms and may be illegal in your jurisdiction.
+          </div>
+          <div class="legal-text mt-3">
+            Violation of any of these terms constitutes grounds for <strong>immediate access revocation</strong> and may expose the violating party to legal action. These terms are subject to change without notice.
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-5 reveal">
+        <div class="disclaimer-box mb-3">
+          <div class="disclaimer-title">📋 FOR EDUCATIONAL USE</div>
+          <div class="disclaimer-text">
+            Omora AI is a demonstration project showcasing the integration of Stable Diffusion models within a Telegram bot ecosystem. It is intended for developers, researchers, and AI enthusiasts who wish to study or learn from the codebase in an ethical and lawful manner.
+          </div>
+        </div>
+        <div class="disclaimer-box mb-3">
+          <div class="disclaimer-title">⚖️ INTELLECTUAL PROPERTY</div>
+          <div class="disclaimer-text">
+            All source code, architecture decisions, and original implementation in Omora AI are the intellectual property of the original developer. The underlying Stable Diffusion model (Realistic Vision V3.0 VAE by SG161222) is subject to its own separate license terms.
+          </div>
+        </div>
+        <div class="disclaimer-box mb-3">
+          <div class="disclaimer-title">🛡️ NO WARRANTY</div>
+          <div class="disclaimer-text">
+            This software is provided "as is" without warranty of any kind, express or implied. The developer makes no guarantees regarding uptime, image quality, service availability, or fitness for any particular purpose.
+          </div>
+        </div>
+        <div class="disclaimer-box">
+          <div class="disclaimer-title">📬 CONTACT / DMCA</div>
+          <div class="disclaimer-text">
+            For DMCA notices, licensing inquiries, or legal correspondence, please contact the developer through official channels listed in the Telegram support link. Unauthorized use reports will be handled with full cooperation of legal authorities.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="container">
+    <div class="row g-5">
+      <div class="col-lg-4">
+        <div class="footer-brand">OMORA·AI</div>
+        <div class="footer-tagline">Turning imagination into imagery — one prompt at a time.</div>
+        <div class="d-flex gap-3">
+          <a href="https://t.me/your_bot_username" style="color:#3a5a75;font-size:1.3rem;transition:color 0.3s;" onmouseover="this.style.color='#00f5ff'" onmouseout="this.style.color='#3a5a75'"><i class="fab fa-telegram"></i></a>
+          <a href="https://github.com/im-aswajith/Omora-Ai" style="color:#3a5a75;font-size:1.3rem;transition:color 0.3s;" onmouseover="this.style.color='#00f5ff'" onmouseout="this.style.color='#3a5a75'"><i class="fab fa-github"></i></a>
+        </div>
+      </div>
+      <div class="col-6 col-lg-2">
+        <div style="font-family:var(--font-display);font-size:0.7rem;color:#3a5a75;letter-spacing:2px;margin-bottom:1rem;">NAVIGATE</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <a href="#about" style="color:#3a5a75;text-decoration:none;font-size:0.85rem;transition:color 0.3s;" onmouseover="this.style.color='#00f5ff'" onmouseout="this.style.color='#3a5a75'">About</a>
+          <a href="#features" style="color:#3a5a75;text-decoration:none;font-size:0.85rem;transition:color 0.3s;" onmouseover="this.style.color='#00f5ff'" onmouseout="this.style.color='#3a5a75'">Features</a>
+          <a href="#how-it-works" style="color:#3a5a75;text-decoration:none;font-size:0.85rem;transition:color 0.3s;" onmouseover="this.style.color='#00f5ff'" onmouseout="this.style.color='#3a5a75'">How It Works</a>
+          <a href="#commands" style="color:#3a5a75;text-decoration:none;font-size:0.85rem;transition:color 0.3s;" onmouseover="this.style.color='#00f5ff'" onmouseout="this.style.color='#3a5a75'">Commands</a>
+        </div>
+      </div>
+      <div class="col-6 col-lg-2">
+        <div style="font-family:var(--font-display);font-size:0.7rem;color:#3a5a75;letter-spacing:2px;margin-bottom:1rem;">LEGAL</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <a href="#privacy" style="color:#3a5a75;text-decoration:none;font-size:0.85rem;transition:color 0.3s;" onmouseover="this.style.color='#00f5ff'" onmouseout="this.style.color='#3a5a75'">Privacy Policy</a>
+          <a href="#legal" style="color:#3a5a75;text-decoration:none;font-size:0.85rem;transition:color 0.3s;" onmouseover="this.style.color='#00f5ff'" onmouseout="this.style.color='#3a5a75'">Terms of Use</a>
+          <a href="#legal" style="color:#3a5a75;text-decoration:none;font-size:0.85rem;transition:color 0.3s;" onmouseover="this.style.color='#00f5ff'" onmouseout="this.style.color='#3a5a75'">Disclaimer</a>
+          <a href="#legal" style="color:#3a5a75;text-decoration:none;font-size:0.85rem;transition:color 0.3s;" onmouseover="this.style.color='#00f5ff'" onmouseout="this.style.color='#3a5a75'">DMCA</a>
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <div style="font-family:var(--font-display);font-size:0.7rem;color:#3a5a75;letter-spacing:2px;margin-bottom:1rem;">QUICK START</div>
+        <div class="terminal-prompt">
+          <div class="prompt-line"><span class="prompt-user">you</span>: /start</div>
+          <div class="prompt-line"><span class="prompt-output">→ Age verification...</span></div>
+          <div class="prompt-line"><span class="prompt-user">you</span>: /imagine sunset over mars</div>
+          <div class="prompt-line"><span class="prompt-output">→ ✅ image_xR7kp.png sent!</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="footer-divider"></div>
+    <div class="footer-copy">
+      © 2025 <span>Omora AI</span>. All rights reserved. For educational purposes only.
+      Unauthorized modification or redistribution is strictly prohibited and illegal.
+      <br><span style="font-size:0.7rem;color:#1a3a50;margin-top:6px;display:block;">Built with PyTorch · python-telegram-bot · diffusers · Realistic Vision V3.0 VAE</span>
+    </div>
+  </div>
+</footer>
+
+<!-- ============ SCRIPTS ============ -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// ---- Loader ----
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    document.getElementById('loader').classList.add('hidden');
+  }, 2200);
+});
+
+// ---- Custom Cursor ----
+const cursor = document.getElementById('cursor');
+const cursorRing = document.getElementById('cursorRing');
+let cx = 0, cy = 0, rx = 0, ry = 0;
+document.addEventListener('mousemove', e => {
+  cx = e.clientX; cy = e.clientY;
+  cursor.style.left = cx + 'px';
+  cursor.style.top = cy + 'px';
+});
+function animRing() {
+  rx += (cx - rx) * 0.12;
+  ry += (cy - ry) * 0.12;
+  cursorRing.style.left = rx + 'px';
+  cursorRing.style.top = ry + 'px';
+  requestAnimationFrame(animRing);
+}
+animRing();
+document.querySelectorAll('a, button, .feature-card, .privacy-card, .cmd-card').forEach(el => {
+  el.addEventListener('mouseenter', () => {
+    cursor.style.width = '20px';
+    cursor.style.height = '20px';
+    cursor.style.background = 'var(--neon-purple)';
+  });
+  el.addEventListener('mouseleave', () => {
+    cursor.style.width = '12px';
+    cursor.style.height = '12px';
+    cursor.style.background = 'var(--neon-cyan)';
+  });
+});
+
+// ---- Stars Canvas ----
+const canvas = document.getElementById('stars-canvas');
+const ctx = canvas.getContext('2d');
+let stars = [];
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+function createStars(n) {
+  stars = [];
+  for (let i = 0; i < n; i++) {
+    stars.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      r: Math.random() * 1.2,
+      a: Math.random(),
+      s: 0.002 + Math.random() * 0.003,
+      d: Math.random() < 0.5 ? 1 : -1
+    });
+  }
+}
+function drawStars() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  stars.forEach(s => {
+    s.a += s.s * s.d;
+    if (s.a <= 0 || s.a >= 1) s.d *= -1;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(0,245,255,${s.a * 0.6})`;
+    ctx.fill();
+  });
+  requestAnimationFrame(drawStars);
+}
+resizeCanvas();
+createStars(180);
+drawStars();
+window.addEventListener('resize', () => { resizeCanvas(); createStars(180); });
+
+// ---- Navbar scroll ----
+const nav = document.getElementById('mainNav');
+window.addEventListener('scroll', () => {
+  nav.classList.toggle('scrolled', window.scrollY > 50);
+});
+
+// ---- Scroll reveal ----
+const revealEls = document.querySelectorAll('.reveal, .step-item');
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.classList.add('visible');
+    }
+  });
+}, { threshold: 0.12 });
+revealEls.forEach(el => observer.observe(el));
+
+// ---- Staggered feature reveal ----
+document.querySelectorAll('.feature-card').forEach((card, i) => {
+  card.style.transitionDelay = (i * 0.07) + 's';
+});
+
+// ---- Counter animation ----
+function animateCount(el, target) {
+  let start = 0;
+  const duration = 1800;
+  const step = (timestamp) => {
+    if (!start) start = timestamp;
+    const progress = Math.min((timestamp - start) / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    el.textContent = Math.round(eased * target);
+    if (progress < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+const counterObs = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      const target = parseInt(e.target.dataset.count);
+      animateCount(e.target, target);
+      counterObs.unobserve(e.target);
+    }
+  });
+}, { threshold: 0.5 });
+document.querySelectorAll('[data-count]').forEach(el => counterObs.observe(el));
+
+// ---- Active nav on scroll ----
+const sections = document.querySelectorAll('section[id]');
+const navLinks = document.querySelectorAll('.nav-link');
+window.addEventListener('scroll', () => {
+  let current = '';
+  sections.forEach(s => {
+    if (window.scrollY >= s.offsetTop - 120) current = s.id;
+  });
+  navLinks.forEach(l => {
+    l.classList.remove('active');
+    if (l.getAttribute('href') === '#' + current) l.classList.add('active');
+  });
+});
+
+// ---- Particle mouse trail ----
+const particles = [];
+document.addEventListener('mousemove', e => {
+  if (Math.random() < 0.3) {
+    const p = document.createElement('div');
+    p.style.cssText = `
+      position:fixed;left:${e.clientX}px;top:${e.clientY}px;
+      width:4px;height:4px;border-radius:50%;
+      background:rgba(0,245,255,0.6);pointer-events:none;
+      z-index:9999;transition:all 0.8s ease;
+    `;
+    document.body.appendChild(p);
+    setTimeout(() => {
+      p.style.opacity = '0';
+      p.style.transform = `translate(${(Math.random()-0.5)*40}px,${(Math.random()-0.5)*40}px) scale(0)`;
+    }, 10);
+    setTimeout(() => p.remove(), 820);
+  }
+});
+</script>
+</body>
+</html>
